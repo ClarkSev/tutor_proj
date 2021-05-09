@@ -6,13 +6,12 @@
 #include <vector>
 #include <list>
 #include <unordered_map>
+#include <unordered_set>
 #include <algorithm>
 #include <fstream>
-#include <random>   // for random engine
-#include <chrono>   // for system time
-#include <assert.h>
-#include <string.h>
+#include <cassert>
 
+#include <string.h>  // for strtok
 // #include <stdio.h>
 // #include <stdlib.h>
 
@@ -21,64 +20,7 @@ using namespace std;
 
 class Qwirkle{
 public:
-    Qwirkle():state(true),player1_(""),player2_("") {
-        // random_bag(bag);
-        // random_bag(bag);
-        random_bag2(bag);
-    }
-
-    void random_bag(list<string>& bag) {
-        char color[6] = {'R','O','Y','G','B','P'};
-        char size[6] = {'1','2','3','4','5','6'};
-        vector<bool> visit_color(6,false);
-        bool allvisit_color = false;
-        bool allvisit_size = false;
-        int count_i = 0;
-        string ltmp("  ");
-        while (count_i < 6) {
-            int i = rand()%6;
-            if (visit_color[i] == false) {
-                visit_color[i] = true;
-                count_i++;
-                int count_j = 0;
-                vector<bool> visit_size(6,false);
-                while (count_j < 6) {
-                    int j = rand()%6;
-                    if (visit_size[j] == false) {
-                        visit_size[j] = true;
-                        ltmp[0] = color[i];  ltmp[1] = size[j];
-                        bag.push_back(ltmp);
-                        count_j++;
-                    }
-                }
-            }
-        }
-    }
-
-    void random_bag2(list<string>& tbag){
-        char color[6] = {'R','O','Y','G','B','P'},
-             size[6] = {'1','2','3','4','5','6'};
-        vector<string> vec_tmp;
-        string ltmp("  ");
-        for(int i=0; i<6; i++){
-            for(int j=0; j<6; j++){
-                ltmp[0] = color[i];  ltmp[1] = size[j];
-                vec_tmp.emplace_back(ltmp);
-                vec_tmp.emplace_back(ltmp);
-            }
-        }
-        // random engine
-        default_random_engine generator(chrono::system_clock::now().time_since_epoch().count());
-        uniform_int_distribution<int> distribution(0, 71);
-        while(tbag.size()<72){
-            int idx = distribution(generator);
-            if(vec_tmp[idx].size()){
-                tbag.push_back(vec_tmp[idx]);
-                vec_tmp[idx] = "";
-            }
-        }
-        // for_each(tbag.begin(), tbag.end(), [](auto& e){ cout<<e<<endl; });
-    }
+    Qwirkle():state(true),player1_(""),player2_("") {}
 
     void show_menu() const{
         cout<<"Menu\n----\n1. New Game\n2. Load Game\n3. Credits (Show student information)\n4. Quit\n\n"<<endl;
@@ -117,7 +59,7 @@ public:
                 is_exist = true;
             }
         }
-        parser_file();
+        parser_file(file_name);
         start_play();
     }
 
@@ -127,6 +69,111 @@ public:
 
     void exit() {
         state = false;
+    }
+
+    bool valid_name(string& s) {
+        if (s.size() == 0) return false;
+        for (auto unit:s) {
+            if ( !isupper(unit))    return false;
+        }
+        return true;
+    }
+
+    void show_student_info(){
+
+    }
+
+    bool parser_file(const string& load_path){
+        ifstream ifs(load_path, fstream::in);
+        if( !ifs.good()){
+            cout<<"Invalid filename"<<endl; return false;
+        }
+        unordered_set<char> color = {'R', 'O', 'Y', 'G', 'B', 'P'};
+
+        string cur_str = "";
+        vector<string> vec_str;
+        int cur_int = -1;
+
+        // get player1 name
+        ifs>>cur_str;
+        if(!valid_name(cur_str))  return false;
+        player1_ = cur_str;
+        
+        // get player1 score
+        ifs>>cur_int;
+        if(cur_int == -1) return false;
+        player1_score_ = cur_int;
+        
+        //get player1 hand
+        ifs>>cur_str;
+        split_string(cur_str, ",", vec_str);
+        for(auto& vec_elem : vec_str){
+            if(vec_elem.size() !=2 || !color.count(vec_elem[0]) || vec_elem[1]<'0' || vec_elem[1]>'6'){
+                return false;
+            }
+            player1_tile_.push_back(vec_elem);
+        }
+
+        // get player2 name
+        ifs>>cur_str;
+        if( !valid_name(cur_str)) return false;
+        player2_ = cur_str;
+
+        // get player2 score
+        cur_int = -1;
+        ifs>>cur_int;
+        if(cur_int == -1) return false;
+        player2_score_ = cur_int;
+
+        //get player2 hand
+        ifs>>cur_str;
+        vec_str.clear();
+        split_string(cur_str, ",", vec_str);
+        for(auto& vec_elem : vec_str){
+            if(vec_elem.size() !=2 || !color.count(vec_elem[0]) || vec_elem[1]<'0' || vec_elem[1]>'6'){
+                return false;
+            }
+            player2_tile_.push_back(vec_elem);
+        }
+
+        //get current board shape
+        cur_int = -1;
+        ifs>>cur_int;
+        if(cur_int<=0 || cur_int>26) return false;
+        row_ = cur_int;
+
+        //fillter the common
+        ifs>>cur_str;
+        cur_str = "";
+
+        cur_int = -1;
+        ifs>>cur_int;
+        if(cur_int<=0 || cur_int>26) return false;
+        column_ = cur_int;
+
+        // get the board state
+        ifs>>cur_str;
+        vec_str.clear();
+        split_string(cur_str, ",", vec_str);
+        for(auto& vec_elem : vec_str){
+            if(vec_elem.size() != 5) return false;
+            int row = vec_elem[0] - 'A', col = vec_elem[1] - '0';
+            string ltile = vec_elem.substr(3);
+            if(!position_in_board(row, col) || !color.count(ltile[0]) || ltile[1]<'0' || ltile[1]>'6') return false;
+            board_[row][col] = ltile;
+        }
+        // get the tile bag
+        ifs>>cur_str;
+        vec_str.clear();
+        split_string(cur_str, ",", vec_str);
+        for(auto& vec_elem : vec_str){
+            if(vec_elem.size() !=2 || !color.count(vec_elem[0]) || vec_elem[1]<'0' || vec_elem[1]>'6'){
+                return false;
+            }
+            tile_bag_.push_back(vec_elem);
+        }
+        ifs.close();
+        return true;
     }
 
     ///@note print list content into ostream
@@ -139,7 +186,7 @@ public:
         out<<list_str<<endl;
     }
 
- ///@note return false if save failed.
+    ///@note return false if save failed.
     bool save_file(const string& save_path){
         ofstream ofs(save_path, fstream::out);
         if( !ofs.good() ){
@@ -171,7 +218,7 @@ public:
         ofs<<board_state<<endl;
 
         // save tile bag contents
-        print_list(ofs, bag);
+        print_list(ofs, tile_bag_);
 
         // save current palyer
         ofs<<cur_player_<<endl;
@@ -180,27 +227,10 @@ public:
         return true;
     }
 
-    bool valid_name(string& s) {
-        if (s.size() == 0) return false;
-        for (auto unit:s) {
-            if ( !isupper(unit))    return false;
-        }
-        return true;
-    }
-
-    void show_student_info(){
-
-    }
-    void parser_file(){
-
-    }
-    void parser_cmd(string& cmd, vector<string>& vec_cmd){
-        char* target = strdup(cmd.c_str());
-        char* token = strtok(target," ");
-        while (token != nullptr) {
-            vec_cmd.push_back(string(token));
-            token = strtok(nullptr," ");
-        }
+    void parser_cmd(vector<string>& vec_cmd){
+        string cmd;
+        getline(cin, cmd);
+        split_string(cmd, " ", vec_cmd);
     }
 
     void split_string(const string& cmd, const string& delim, vector<string>& vec_cmd){
@@ -211,90 +241,22 @@ public:
             token = strtok(nullptr, delim.data());
         }
     }
-
     void start_play(){
-        bool is_end = false;
-        while ( !is_end) {
-            show_play();
-            string temp_cmd = "";
-            vector<string> vec_cmd;
-            getline(cin,temp_cmd);
-            parser_cmd(temp_cmd,vec_cmd);
-            while (isvalid_cmd(vec_cmd)) {
-                cout<<"Please input valid cmd"<<endl;
-                cout<<">";
-                getline(cin,temp_cmd);
-                parser_cmd(temp_cmd,vec_cmd);
-            }
 
-            if (vec_cmd[0] == "place") {
-                bool is_qwirkle = false;
-                int x = vec_cmd[3][0] - 'A';
-                int y = vec_cmd[3][1] - '0';
-                int score = get_current_score(x, y, vec_cmd[1], is_qwirkle);
-                if (score == -1)    cout<<"This action is illeagal"<<endl;
-                else {
-                    if (cur_player_ == player1_) player1_score_ += score;
-                    else player2_score_ += score;
-                    board_[x][y] = vec_cmd[1];
-                }
-            }
-            else if (vec_cmd[0] == "replace") {
-                if (cur_player_ == player1_) {
-                    auto iter = find(player1_tile_.begin(),player1_tile_.end(),vec_cmd[1]);
-                    player1_tile_.erase(iter);
-                    player1_tile_.push_back(bag.front());
-                    bag.pop_front();
-                }
-            }
-            else if (vec_cmd[0] == "save") {
-                save_file(vec_cmd[1]);
-            }
-
-            if (cur_player_ == player1_) cur_player_ = player2_;
-            else cur_player_ = player1_;
-        }
     }
-
-    void show_board() const{
-        int row = board_.size();
-        if (row == 0)   return;
-        int col = board_[0].size();
+    void show_board(const int row, const int col, const vector<vector<string>>& tiles) const{
         cout<<"    ";
         for(int i=0; i<col; i++){
             cout<<i<<"  ";
         }
         cout<<endl;
-        cout<<"   ------------------"<<endl;
         for(int i=0; i<row; i++){
             cout<<static_cast<char>('A'+i)<<" |";
             for(int j=0; j<col; j++){
-                cout<<board_[i][j]<<"|";
+                cout<<tiles[i][j]<<"|";
             }
             cout<<endl;
         }
-    }
-
-    void show_play() const {
-        cout<<cur_player_<<", it's your turn"<<endl;
-        cout<<"Score for "<<player1_<<": "<<player1_score_<<endl;
-        cout<<"Score for "<<player2_<<": "<<player2_score_<<endl;
-        show_board();
-        cout<<endl;
-        cout<<"Your hand is"<<endl;
-        show_tiles();
-        cout<<endl;
-        cout<<">";
-    }
-
-    void show_tiles() const{
-        string temp = "";
-        for (auto tile:player1_tile_) {
-            temp += tile + ",";
-        }
-        int n = temp.size();
-        if (n == 0) return;
-        cout<<temp.substr(0,n-1);
     }
 
     void run() {
@@ -341,66 +303,6 @@ private:
         return is_qwirkle;
     }
 
-    bool isvalid_cmd(vector<string>& cmd) {
-        int n = cmd.size();
-        if (n == 0)    return false;
-
-        bool isvalid = false;
-        if (cmd[0] == "replace" && n >= 2) {
-            if (isvalid_tile(cmd[1]))   isvalid = true;
-        }
-        else if (cmd[0] == "place" && n >= 4) {
-            if (isvalid_tile(cmd[1]) && cmd[2] == "at" && isvalid_pos(cmd[3]))  isvalid = true;
-        }
-        else if (cmd[0] == "save" && n >= 2) {
-            if (isvalid_file(cmd[1]))   isvalid = true;
-        }
-
-        return false;
-    }
-
-    bool isvalid_tile(string& s) {
-        int n = s.size();
-        if (n != 2) return false;
-
-        if (isupper(s[0]) && isdigit(s[1])) {
-            if (cur_player_ == player1_) {
-                for (auto now:player1_tile_) {
-                    if (now == s)   return true;
-                }
-            }
-            else if (cur_player_ == player2_) {
-                for (auto now:player2_tile_) {
-                    if (now == s)   return true;
-                }
-            }
-        }
-        
-        return false;
-    }
-
-    bool isvalid_pos(string& s) {
-        int n = s.size();
-        if (n != 2) return false;
-
-        if ((s[0] >= 'A' && s[0] <= 'F') && (s[1] >= '0' && s[1] <= '5')) {
-            int x = s[0] - 'A';
-            int y = s[1] - '0';
-            if (board_[x][y] == "  ")   return true;
-        }
-
-        return false;
-    }
-
-    bool isvalid_file(string& s) {
-        int n = s.size();
-        if (n <= 4) return false;
-
-        if (s.substr(n-4) == ".txt")    return true;
-        
-        return false;
-    }
-
     ///@note text
     bool is_empty_board(){
         for(int i=0; i<row_; i++){
@@ -410,7 +312,6 @@ private:
         }
         return true;
     }
-
     ///@note return -1 if there is an invaild position
     int is_valid_position(const int row, const int col, const string& tile){
 
@@ -425,7 +326,7 @@ private:
             int x = row + dxy[i][0], y = col + dxy[i][1];
             if(position_in_board(x,y)){
                 // assert(board_[x][y].size() == 2);
-                if(board_[x][y] != "  "){
+                if(board_[x][y] != " "){
                     allBlank = false;
                 }
             }
@@ -474,19 +375,6 @@ private:
         return ret;
     }
 
-    // int get_score(const int x, const int y, const string& tile){
-    //     int idx = tile[0] == board_[x][y][0] ? 0 : 1;
-    //     int k=1, row = x + k * delta[0], col = y + k * delta[1];
-    //     while(position_in_board(row, col) && board_[row][col] != "  "){
-    //         if(board_[row][col][idx] == tile[idx]) k++;
-    //         else return -1;
-    //         if (board_[row][col] == tile) return -1;
-    //         row = x + k * delta[0], col = y + k * delta[1];
-    //     }
-    //     if(k > 6) return -1;
-    //     else return k;
-    // }
-
     ///@note text
     int legal_direction(const int x, const int y, const int* direction, const string& tile){
         int idx = tile[0] == board_[x][y][0] ? 0 : 1;
@@ -496,8 +384,8 @@ private:
             else return -1;
             row = x + k * direction[0], col = y + k * direction[1];
         }
-        if(k > 6) return -1;
-        else return k;
+        if(k >= 6) return -1;
+        else return k+1;
     }
 
     ///@note text
@@ -513,19 +401,24 @@ private:
     int player1_score_, player2_score_;
     string cur_player_, player1_, player2_;
     list<string> player1_tile_, player2_tile_;
-    list<string> bag;
     list<string>* cur_tile_;
 
+    list<string> tile_bag_;
     vector<vector<string>> board_;
 };
 
 int main(){
     Qwirkle q;
+    // int selection;
     // while (q.state) {
     //     q.run();
     // }
-    cout<<"success"<<endl;
-    getchar();getchar();
+    vector<string>vec;
+    // q.parser_cmd(vec);
+    // list<string> lst = {"124", "fjiag", "aege"};
+    // for_each(lst.begin(), lst.end(), [&](auto& s){ cout<<s<<endl; });
+
+    getchar();
     return 0;
 }
 

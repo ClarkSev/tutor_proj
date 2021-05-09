@@ -19,9 +19,9 @@
                 "args": [
                     "-ggdb",
                     "\"${file}\"",
-                    "-Wall",
-                    "-Wextra",
-                    "-Werror",
+                    // "-Wall",
+                    // "-Wextra",
+                    // "-Werror",
                     "-Wconversion",
                     "-Wno-unused-parameter",
                     "-Wold-style-cast",
